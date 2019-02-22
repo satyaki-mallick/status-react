@@ -38,6 +38,7 @@
  (fn [[params all-tokens symbol chain on-completed masked-password]]
    (case symbol
      :ETH (send-ethers params on-completed masked-password)
+     :STT (send-ethers params on-completed masked-password)
      (send-tokens all-tokens symbol chain params on-completed masked-password))))
 
 (re-frame/reg-fx
@@ -313,4 +314,3 @@
    (fx/merge cofx
              {:dispatch-later [{:ms 400 :dispatch [:check-dapps-transactions-queue]}]}
              (navigation/navigate-back))))
-
