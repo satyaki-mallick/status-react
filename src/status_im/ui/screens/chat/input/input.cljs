@@ -54,15 +54,12 @@
 
 (defview basic-text-input-desktop [{:keys [set-container-width-fn height single-line-input? set-text state-text]}]
   (letsubs [cooldown-enabled?    [:chats/cooldown-enabled?]]
-    ;(let [component               (reagent/current-component)
-    ;      set-text #(reagent/set-state component {:state-text %})
-    ;      {:keys [state-text]} (reagent/state component)]
     [react/text-input
      (merge
       {:ref                    #(when % (re-frame/dispatch [:chat.ui/set-chat-ui-props {:input-ref %}]))
        :accessibility-label    :chat-message-input
        :multiline              (not single-line-input?)
-       :default-value          state-text
+       :default-value          @state-text
        :editable               (not cooldown-enabled?)
        :blur-on-submit         false
        :on-focus               #(re-frame/dispatch [:chat.ui/set-chat-ui-props {:input-focused?    true
@@ -71,15 +68,13 @@
        :on-blur                #(re-frame/dispatch [:chat.ui/set-chat-ui-props {:input-focused? false}])
        :submit-shortcut        {:key "Enter"}
        :on-submit-editing      #(do
-                                  (re-frame/dispatch [:chat.ui/set-chat-input-text state-text])
+                                  (re-frame/dispatch [:chat.ui/set-chat-input-text @state-text])
                                   (re-frame/dispatch [:chat.ui/send-current-message])
                                   (set-text ""))
        :on-layout              #(set-container-width-fn (.-width (.-layout (.-nativeEvent %))))
        :on-change              #(do
-                                  (set-text (.-text (.-nativeEvent %)))
-                                    ;(re-frame/dispatch [:chat.ui/set-chat-input-text state-text])
-)
-       :on-end-editing         #(re-frame/dispatch [:chat.ui/set-chat-input-text state-text])
+                                  (set-text (.-text (.-nativeEvent %))))
+       :on-end-editing         #(re-frame/dispatch [:chat.ui/set-chat-input-text @state-text])
        :on-selection-change    #(let [s (-> (.-nativeEvent %)
                                             (.-selection))
                                       end (.-end s)]
@@ -136,8 +131,8 @@
         (if platform/desktop?
           [basic-text-input-desktop {:set-container-width-fn set-container-width-fn
                                      :single-line-input?     single-line-input?
-                                     :set-text set-text
-                                     :state-text state-text}]
+                                     :set-text               set-text
+                                     :state-text             state-text}]
           [basic-text-input {:set-container-width-fn set-container-width-fn
                              :single-line-input?     single-line-input?}])
         [input-helper {:width width}]]])))
@@ -179,11 +174,14 @@
   (letsubs [margin               [:chats/input-margin]
             {:keys [input-text]} [:chats/current-chat]
             result-box           [:chats/current-chat-ui-prop :result-box]
-            show-stickers?       [:chats/current-chat-ui-prop :show-stickers?]]
+            show-stickers?       [:chats/current-chat-ui-prop :show-stickers?]
+            state-text (reagent/atom "")]
+    {:component-will-unmount #(re-frame/dispatch [:chat.ui/set-chat-input-text @state-text])
+
+     :component-did-mount    #(when-not (string/blank? input-text) (reset! state-text input-text))}
     (let [single-line-input? (:singleLineInput result-box)
-          component               (reagent/current-component)
-          set-text #(reagent/set-state component {:state-text %})
-          {:keys [state-text]} (reagent/state component)
+          component          (reagent/current-component)
+          set-text           #(reset! state-text %)
           input-text-empty? (if platform/desktop?
                               (string/blank? state-text)
                               (string/blank? input-text))]
@@ -201,7 +199,7 @@
         (if input-text-empty?
           [commands-button]
           (if platform/desktop?
-            [send-button/send-button-view {:input-text state-text}]
+            [send-button/send-button-view {:input-text @state-text}]
             [send-button/send-button-view {:input-text input-text}]))]])))
 
 (defn container []
