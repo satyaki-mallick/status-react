@@ -22,12 +22,10 @@
     :action #(open-share {:message text})}])
 
 (defn show [options]
-  (when platform/ios?
-    (action-sheet/show options))
-  (when platform/android?
-    (dialog/show options))
-  (when platform/desktop?
-    (show-desktop-menu (->> (:options options) (remove nil?)))))
+  (cond
+    platform/ios?     (action-sheet/show options)
+    platform/android? (dialog/show options)
+    platform/desktop? (show-desktop-menu (->> (:options options) (remove nil?)))))
 
 (defn chat-message [message-id old-message-id text dialog-title]
   (show {:title       dialog-title
