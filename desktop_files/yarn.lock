@@ -7241,9 +7241,9 @@ react-native-udp@2.2.1:
     invariant "2.2.0"
     keymirror "0.1.1"
 
-"react-native@git+https://github.com/status-im/react-native-desktop.git#fix/for_status_mobile":
+"react-native@git+https://github.com/status-im/react-native-desktop.git#fix/for_mobile_2":
   version "0.57.8"
-  resolved "git+https://github.com/status-im/react-native-desktop.git#40cb25e8ec0aa63251c4b9512761f2a61bda84ca"
+  resolved "git+https://github.com/status-im/react-native-desktop.git#9ad69561bb89589d4840a024614937dea6d014b9"
   dependencies:
     "@babel/runtime" "^7.0.0"
     absolute-path "^0.0.0"

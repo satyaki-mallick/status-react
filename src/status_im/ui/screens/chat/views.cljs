@@ -107,8 +107,10 @@
                                                                    :show-stickers? false}])
                    (when-not platform/desktop?
                      (react/dismiss-keyboard!)))}
-      [react/animated-view {:style (style/message-view-animated opacity)}
-       message-view]]]))
+      (if platform/desktop?
+        message-view
+        [react/animated-view {:style (style/message-view-animated opacity)}
+         message-view])]]))
 
 (defn empty-chat-container
   []
