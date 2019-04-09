@@ -80,9 +80,9 @@
 
 (fx/defn show-no-keycard-applet-alert [_]
   {:utils/show-confirmation {:title               (i18n/label :t/no-keycard-applet-on-card)
-                             :content             (i18n/label :t/keycard-applet-will-be-installed)
+                             :content             (i18n/label :t/keycard-applet-install-instructions)
                              :cancel-button-text  ""
-                             :confirm-button-text :t/next}})
+                             :confirm-button-text :t/okay}})
 
 (fx/defn show-keycard-has-account-alert
   [{:keys [db] :as cofx}]
@@ -139,15 +139,19 @@
   [{:keys [db] :as cofx}]
   (let [app-info (get-in db [:hardwallet :application-info])
         card-state (get-card-state app-info)
-        setup-running? (boolean (get-in db [:hardwallet :setup-step]))]
-    (fx/merge cofx
-              {:db (assoc-in db [:hardwallet :card-state] card-state)}
-              (when setup-running?
+        setup-running? (boolean (get-in db [:hardwallet :setup-step]))
+        db' (assoc-in db [:hardwallet :card-state] card-state)]
+    (if setup-running?
+      (fx/merge cofx
+                {:db db'}
+                (set-setup-step card-state)
+                (when-not (contains? #{:pre-init :account} card-state)
+                  (navigation/navigate-to-cofx :hardwallet-authentication-method nil))
                 (when (= card-state :blank)
                   (show-no-keycard-applet-alert))
-                (if (= card-state :account)
-                  (show-keycard-has-account-alert)
-                  (set-setup-step card-state))))))
+                (when (= card-state :account)
+                  (show-keycard-has-account-alert)))
+      {:db db'})))
 
 (fx/defn navigate-to-keycard-settings
   [{:keys [db] :as cofx}]
@@ -881,14 +885,8 @@
         pin (vector->string (get-in db [:hardwallet :pin :original]))]
     (case card-state
 
-      :blank
-      {:hardwallet/install-applet-and-init-card pin}
-
       :pre-init
       {:hardwallet/init-card pin}
-
-      :init
-      {:hardwallet/install-applet-and-init-card pin}
 
       (do
         (log/debug (str "Cannot start keycard installation from state: " card-state))
