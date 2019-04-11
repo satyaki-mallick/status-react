@@ -17,7 +17,8 @@
             [status-im.ui.screens.home.views.inner-item :as inner-item]
             [status-im.utils.platform :as platform]
             [status-im.utils.utils :as utils]
-            [status-im.ui.components.bottom-bar.styles :as tabs.styles])
+            [status-im.ui.components.bottom-bar.styles :as tabs.styles]
+            [clojure.string :as str])
   (:require-macros [status-im.utils.views :as views]))
 
 (defn- toolbar [show-welcome? show-sync-state sync-state latest-block-number logged-in?]
@@ -160,7 +161,7 @@
                          0)))
 
 (defn animated-search-input
-  [search-filter]
+  [search-filter save-filter]
   (reagent/create-class
    {:component-will-unmount
     #(set-search-state-visible! false)
@@ -176,13 +177,13 @@
            {:style {:height height}}
            [search-input search-filter
             {:on-cancel #(do
-                           (re-frame/dispatch [:search/filter-changed nil])
+                           (save-filter nil)
                            (hide-search!))
              :on-focus  (fn [search-filter]
                           (when-not search-filter
-                            (re-frame/dispatch [:search/filter-changed ""])))
+                            (save-filter "")))
              :on-change (fn [text]
-                          (re-frame/dispatch [:search/filter-changed text]))}]])))}))
+                          (save-filter text))}]])))}))
 
 (defn home-empty-view
   []
@@ -267,6 +268,23 @@
                           (fn [home-item]
                             [home-list-item home-item])}]]))))
 
+(views/defview home-view []
+  (views/letsubs [{:keys [search-filter chats all-home-items]} [:home-items]]
+    (if (and (not search-filter)
+             (empty? all-home-items))
+      [home-empty-view]
+      [home-items-view search-filter chats all-home-items])))
+
+(views/defview home-loaded []
+  (views/letsubs [search-filter (reagent/atom "")]
+    (let [save-filter #(do (re-frame/dispatch [:search/filter-changed %])
+                           (when (or (nil? %) (str/blank? %))
+                             (reset! search-filter %)))]
+      [react/view {:style {:flex 1}}
+       [connectivity/connectivity-view]
+       [animated-search-input @search-filter save-filter]
+       [home-view]])))
+
 (views/defview home [loading?]
   (views/letsubs [show-welcome? [:get-in [:accounts/create :show-welcome?]]
                   view-id [:get :view-id]
@@ -274,8 +292,7 @@
                   sync-state [:chain-sync-state]
                   latest-block-number [:latest-block-number]
                   rpc-network? [:current-network-uses-rpc?]
-                  network-initialized? [:current-network-initialized?]
-                  {:keys [search-filter chats all-home-items]} [:home-items]]
+                  network-initialized? [:current-network-initialized?]]
     {:component-did-mount
      (fn [this]
        (let [[_ loading?] (.. this -props -argv)]
@@ -301,13 +318,7 @@
                                         :animating true}]]
 
             :else
-            [react/view {:style {:flex 1}}
-             [connectivity/connectivity-view]
-             [animated-search-input search-filter]
-             (if (and (not search-filter)
-                      (empty? all-home-items))
-               [home-empty-view]
-               [home-items-view search-filter chats all-home-items])])
+            [home-loaded])
       (when platform/android?
         [home-action-button (not logging-in?)])]]))
 
