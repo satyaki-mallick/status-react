@@ -18,8 +18,9 @@
     :action #(re-frame/dispatch [:chat.ui/reply-to-message message-id old-message-id])}
    {:label  (i18n/label :t/sharing-copy-to-clipboard)
     :action #(react/copy-to-clipboard text)}
-   {:label  (i18n/label :t/sharing-share)
-    :action #(open-share {:message text})}])
+   (when-not platform/desktop?
+     {:label  (i18n/label :t/sharing-share)
+      :action #(open-share {:message text})})])
 
 (defn show [options]
   (cond

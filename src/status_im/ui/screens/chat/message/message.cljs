@@ -272,17 +272,24 @@
    [react/view (style/delivery-status outgoing)
     [message-delivery-status message]]])
 
-(defn chat-message [{:keys [message-id old-message-id outgoing group-chat modal? current-public-key content-type content] :as message}]
+(defn open-chat-context-menu
+  [{:keys [message-id old-message-id content] :as message}]
+  (list-selection/chat-message message-id old-message-id (:text content) (i18n/label :t/message)))
+
+(defn chat-message [{:keys [outgoing group-chat modal? current-public-key content-type content] :as message}]
   [react/view
-   [react/touchable-highlight {:on-press      (fn [_]
-                                                (when (= content-type constants/content-type-sticker)
-                                                  (re-frame/dispatch [:stickers/open-sticker-pack (:pack content)]))
-                                                (re-frame/dispatch [:chat.ui/set-chat-ui-props {:messages-focused? true
-                                                                                                :show-stickers? false}])
-                                                (when-not platform/desktop?
-                                                  (react/dismiss-keyboard!)))
+   [react/touchable-highlight {:on-press      (fn [arg]
+                                                (if (and platform/desktop? (= "right" (.-button (.-nativeEvent arg))))
+                                                  (open-chat-context-menu message)
+                                                  (do
+                                                    (when (= content-type constants/content-type-sticker)
+                                                      (re-frame/dispatch [:stickers/open-sticker-pack (:pack content)]))
+                                                    (re-frame/dispatch [:chat.ui/set-chat-ui-props {:messages-focused? true
+                                                                                                    :show-stickers? false}])
+                                                    (when-not platform/desktop?
+                                                      (react/dismiss-keyboard!)))))
                                :on-long-press #(when (= content-type constants/content-type-text)
-                                                 (list-selection/chat-message message-id old-message-id (:text content) (i18n/label :t/message)))}
+                                                 (open-chat-context-menu message))}
     [react/view {:accessibility-label :chat-item}
      (let [incoming-group (and group-chat (not outgoing))]
        [message-content message-body (merge message
