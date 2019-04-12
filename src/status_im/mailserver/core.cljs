@@ -727,21 +727,30 @@
       there was no filter for the chat and messages for that
       so the whole history for that topic needs to be re-fetched"
   [{:keys [db now] :as cofx} {:keys [topic chat-id]}]
-  (let [{:keys [chat-ids last-request] :as current-mailserver-topic}
+  (let [{:keys [chat-ids] :as current-mailserver-topic}
         (get-in db [:mailserver/topics topic] {:chat-ids #{}})]
-    (when-let [mailserver-topic
-               (when-not (chat-ids chat-id)
-                 (-> current-mailserver-topic
-                     (assoc :last-request (- (quot now 1000)
-                                             (if (= topic :discovery-topic)
-                                               max-discovery-request-range
-                                               max-request-range)))
-                     (update :chat-ids conj chat-id)))]
-      (fx/merge cofx
-                {:db (assoc-in db [:mailserver/topics topic] mailserver-topic)
-                 :data-store/tx [(data-store.mailservers/save-mailserver-topic-tx
-                                  {:topic topic
-                                   :mailserver-topic mailserver-topic})]}))))
+    (let [{:keys [new-account? public-key]} (:account/account db)
+          now-s        (quot now 1000)
+          last-request (if (and new-account?
+                                (or (= chat-id :discovery-topic)
+                                    (and
+                                     (string? chat-id)
+                                     (string/starts-with?
+                                      chat-id
+                                      public-key))))
+                         (- now-s 10)
+                         (- now-s (if (= chat-id :discovery-topic)
+                                    max-discovery-request-range
+                                    max-request-range)))]
+      (when-let [mailserver-topic (when-not (chat-ids chat-id)
+                                    (-> current-mailserver-topic
+                                        (assoc :last-request last-request)
+                                        (update :chat-ids conj chat-id)))]
+        (fx/merge cofx
+                  {:db            (assoc-in db [:mailserver/topics topic] mailserver-topic)
+                   :data-store/tx [(data-store.mailservers/save-mailserver-topic-tx
+                                    {:topic            topic
+                                     :mailserver-topic mailserver-topic})]})))))
 
 (fx/defn fetch-history
   [{:keys [db] :as cofx} chat-id {:keys [from to]}]
